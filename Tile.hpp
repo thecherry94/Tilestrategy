@@ -1,8 +1,14 @@
 #pragma once
 
+#include <memory>
 
 #define TS_GRASS 5
 
+
+/*
+ * TODO:
+ * Implement signals for events such as property changes (obstacle, img_id) etc.
+ */
 
 class Tile
 {
@@ -15,7 +21,7 @@ class Tile
 	public:
 		Tile(int, bool);
 		
-		static Tile* create_empty();
+		static std::unique_ptr<Tile> create_empty();
 
 		// Setter
 		void set_pos(int, int);

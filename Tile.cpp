@@ -4,11 +4,21 @@
 Tile::Tile(int img_id, bool is_obstacle = false)
 {
 	_img_id = img_id;
-
 	_is_obstacle = is_obstacle;
 }
 
-Tile* Tile::create_empty()
+std::unique_ptr<Tile> Tile::create_empty()
 {
-	return new Tile(TS_GRASS);
+	return std::make_unique<Tile>(TS_GRASS);
+}
+
+
+int Tile::get_image_id()
+{
+	return _img_id;
+}
+
+bool Tile::is_obstacle()
+{
+	return is_obstacle;
 }
