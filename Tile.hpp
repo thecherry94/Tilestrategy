@@ -2,7 +2,9 @@
 
 #include <memory>
 
-#define TS_GRASS 5
+#define TS_GRASS 24
+#define TS_TRANSPARENT 5
+#define TS_CHEST 27
 
 
 /*
@@ -21,7 +23,7 @@ class Tile
 	public:
 		Tile(int, bool);
 		
-		static std::unique_ptr<Tile> create_empty();
+		static std::shared_ptr<Tile> create_empty();
 
 		// Setter
 		void set_pos(int, int);

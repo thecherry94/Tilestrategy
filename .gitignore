@@ -45,3 +45,15 @@ $RECYCLE.BIN/
 Network Trash Folder
 Temporary Items
 .apdisk
+Debug/Tilestrategy.pdb
+Debug/Tilestrategy.log
+*.ilk
+Debug/Tilestrategy.exe
+*.enc
+Debug/Tilemap.obj
+*.obj
+.vs/Tilestrategy/v14/.suo
+*.db
+Debug/vc140.pdb
+*.idb
+.vs/Tilestrategy/v14/.suo
