@@ -18,6 +18,7 @@ typedef std::vector<sf::VertexArray>					RenderVertices;
 /*
  * Tilemap class
  * This class holds all the information necessary to draw and navigate through the map.
+ * It inherits from sf::Drawable and sf::Transformable to ensure (rendering) compatibility with the SFML framework.
  * 
  * The main information is stored in the TilemapContainer _map, 
  * which is a vector of a vector of shared pointer of the type Tile.
@@ -42,14 +43,17 @@ typedef std::vector<sf::VertexArray>					RenderVertices;
  * Things that have to implemented:
  * 1. The layer system is still not fully functional.
  *	  Adding new layers is not implemented.
+ *	  [MAYBE DONE] It still needs some testing
  *
  * Possible improvements:
  * 1. Instead of having to update all submaps and all of their fields when a single change is made,
- *	  only do updates where it is really necessary [Saves computation time]
+ *	  only do updates where it is really necessary [Saves computation time quadratically with map size]
  *
  * 2. The add_tile method checks for transparent tiles whether it should add a new layer or not.
  *	  I think there is a better method to do this.
  *
+ * 3. At the moment, the rendering method loops through the whole map. Parts that are not visible should be ignored.
+ *	  A possibility would be to add an additional vertex array with only enough space to fit in whats inside the screen.
  *
  * TL;DR:
  * This code sucks ass but it works
@@ -64,6 +68,7 @@ class Tilemap : public sf::Drawable, public sf::Transformable
 		ObstacleMap _obstmap;
 		sf::Texture _texture;
 		RenderVertices _render_vertices;
+		RenderVertices _visible_vertices;
 
 
 		int _tilesize;
@@ -71,6 +76,9 @@ class Tilemap : public sf::Drawable, public sf::Transformable
 		int _num_layers;
 
 		void update_maps();
+		void add_layer();
+		void update_map_vertices();
+		void update_visible_vertices(sf::Vector2<int>);
 
 		
 
@@ -85,7 +93,7 @@ class Tilemap : public sf::Drawable, public sf::Transformable
 
 		TextureMap get_texture_map();
 		ObstacleMap get_obstacle_map();
-		void update_map_vertices();
+		
 
 
 };

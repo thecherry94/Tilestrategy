@@ -57,3 +57,10 @@ Debug/Tilemap.obj
 Debug/vc140.pdb
 *.idb
 .vs/Tilestrategy/v14/.suo
+*.tlog
+*.tlog
+*.tlog
+*.tlog
+Debug/Tilestrategy.tlog/CL.command.1.tlog
+*.tlog
+*.pdb

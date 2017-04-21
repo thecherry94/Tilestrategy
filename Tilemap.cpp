@@ -22,18 +22,12 @@ Tilemap::Tilemap(sf::Vector2<int> map_size, int tilesize, sf::String image_path,
 	int height = _size.y;
 
 
-	// resize memory to save time for later computations
+	// resize memory and initialize values with empty tiles
 	//
 	_map.resize(width * height);
 	for (int y = 0; y < height; y++)
 		for (int x = 0; x < width; x++)
-			_map[y * width + x].resize(_num_layers);
-
-	// Fill the map with empty tiles by default
-	//
-	for (int y = 0; y < height; y++)
-		for (int x = 0; x < width; x++)
-			_map[y * width + x][0] = Tile::create_empty();
+			_map[y * width + x].resize(_num_layers, Tile::create_empty());
 
 	// Update the texture map
 	_texmap = get_texture_map();
@@ -110,19 +104,7 @@ void Tilemap::add_tile(sf::Vector2<int> pos, Tile tile)
 	// If the tile on the position specified is not transparent, add a new layer
 	//
 	if (_map[y * width + x][_num_layers - 1]->get_image_id() != TS_TRANSPARENT)
-	{
-		_num_layers++;
-
-		// Fill the new layer with transparent tiles first
-		//
-		for (int ly = 0; ly < height; ly++)
-		{
-			for (int lx = 0; lx < width; lx++)
-			{
-				_map[ly * width + lx][_num_layers - 1] = std::make_shared<Tile>(Tile(TS_TRANSPARENT, false));
-			}
-		}
-	}
+		add_layer();
 
 	// Insert the new tile into the tilemap
 	_map[y * width + x][_num_layers - 1] = std::make_shared<Tile>(tile);
@@ -272,3 +254,97 @@ void Tilemap::update_map_vertices()
 		}
 	}
 }
+
+
+void Tilemap::add_layer()
+{
+	int width = _size.x;
+	int height = _size.y;
+
+	_num_layers++;
+
+	_render_vertices.resize(_num_layers);
+
+	_render_vertices[_num_layers - 1] = sf::VertexArray();
+	_render_vertices[_num_layers - 1].setPrimitiveType(sf::Quads);
+	_render_vertices[_num_layers - 1].resize(width * height * 4);
+
+	
+
+	// Fill the new layer with transparent tiles first
+	//
+	for (int ly = 0; ly < height; ly++)
+	{
+		for (int lx = 0; lx < width; lx++)
+		{
+			// Let the main map know about the new layer
+			//
+			_map[ly * width + lx].resize(_num_layers, std::make_shared<Tile>(Tile(TS_TRANSPARENT, false)));
+
+			// Update the texture map manually
+			//
+			_texmap[ly * width + lx].resize(_num_layers, _map[ly * width + lx][_num_layers - 1]->get_image_id());
+
+
+
+			// Copy paste from above
+			//
+			int tile_img_id = _texmap[ly * width + lx][_num_layers-1];
+
+			// Calculate the texture coordinates for that tile
+			int tu = tile_img_id % (_texture.getSize().x / _tilesize);
+			int tv = tile_img_id / (_texture.getSize().y / _tilesize);
+
+			sf::Vertex* quad = &_render_vertices[_num_layers - 1][(ly * width + lx) * 4];
+
+			// Calculate the quads position
+			// 
+			quad[0].position = sf::Vector2f(lx * _tilesize, ly * _tilesize);
+			quad[1].position = sf::Vector2f((lx + 1) * _tilesize, ly * _tilesize);
+			quad[2].position = sf::Vector2f((lx + 1) * _tilesize, (ly + 1) * _tilesize);
+			quad[3].position = sf::Vector2f(lx * _tilesize, (ly + 1) * _tilesize);
+
+			// Calculate the texture coordinates 
+			quad[0].texCoords = sf::Vector2f(tu * _tilesize, tv * _tilesize);
+			quad[1].texCoords = sf::Vector2f((tu + 1) * _tilesize, tv * _tilesize);
+			quad[2].texCoords = sf::Vector2f((tu + 1) * _tilesize, (tv + 1) * _tilesize);
+			quad[3].texCoords = sf::Vector2f(tu * _tilesize, (tv + 1) * _tilesize);
+		}
+	}
+
+	update_maps();
+}
+
+
+
+
+void Tilemap::update_visible_vertices(sf::Vector2<int> offset)
+{
+	sf::VideoMode resolution = sf::VideoMode::getDesktopMode();
+	int width = resolution.width;
+	int height = resolution.height;
+	
+	int tiles_x = width / _tilesize;
+	int tiles_y = height / _tilesize;
+
+
+	// This block could be transfered to a seperate method
+	// since this only needs to be done once the resolution 
+	// or the number of layers changes
+	//
+	_visible_vertices.resize(tiles_x * tiles_y);
+	for (int y = 0; y < tiles_y; y++)
+		for (int x = 0; x < tiles_x; x++)
+			for (int l = 0; l < _num_layers; l++)
+				_visible_vertices[y * width + x].resize(_num_layers);
+
+
+	
+
+
+
+}
+
+
+
+
