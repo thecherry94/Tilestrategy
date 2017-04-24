@@ -2,10 +2,11 @@
 
 
 
-Tilemap::Tilemap(sf::Vector2<int> map_size, int tilesize, sf::String image_path, int num_layers = 1)
+Tilemap::Tilemap(sf::RenderWindow* win, sf::Vector2<int> map_size, int tilesize, sf::String image_path, int num_layers = 1)
 {
+	_p_win = win;
 	_num_layers = num_layers;
-	_size = map_size;	
+	_size = map_size;
 	_tilesize = tilesize;
 
 	if (!_texture.loadFromFile(image_path))
@@ -17,7 +18,7 @@ Tilemap::Tilemap(sf::Vector2<int> map_size, int tilesize, sf::String image_path,
 	{
 		throw std::exception("[FATAL ERROR]\nTilemap: Tile size and tileset size do not match.");
 	}
-	
+
 	int width = _size.x;
 	int height = _size.y;
 
@@ -30,10 +31,10 @@ Tilemap::Tilemap(sf::Vector2<int> map_size, int tilesize, sf::String image_path,
 			_map[y * width + x].resize(_num_layers, Tile::create_empty());
 
 	// Update the texture map
-	_texmap = get_texture_map();
+	_texmap = generate_texture_map();
 
 	// Update the obstacle map
-	_obstmap = get_obstacle_map();
+	_obstmap = generate_obstacle_map();
 
 
 
@@ -84,7 +85,7 @@ void Tilemap::draw(sf::RenderTarget& target, sf::RenderStates states) const
 	states.texture = &_texture;
 
 	for (int l = 0; l < _num_layers; l++)
-		target.draw(_render_vertices[l], states);
+		target.draw(_visible_vertices[l], states);
 }
 
 
@@ -111,6 +112,19 @@ void Tilemap::add_tile(sf::Vector2<int> pos, Tile tile)
 	update_maps();
 }
 
+void Tilemap::update_maps(sf::Vector2u at)
+{
+	update_maps(at.x, at.y);
+}
+
+
+
+void Tilemap::update_maps(unsigned int at_x, unsigned int at_y)
+{
+
+}
+
+
 
 /*
  * Instead of adding a tile (and potentially a new layer) this method
@@ -136,12 +150,14 @@ void Tilemap::set_tile(sf::Vector2<int> pos, Tile tile, int layer)
 }
 
 
-
+// Overload this method for single changes
+//
 void Tilemap::update_maps()
 {
-	_texmap = get_texture_map();
-	_obstmap = get_obstacle_map();
+	_texmap = generate_texture_map();
+	_obstmap = generate_obstacle_map();
 	update_map_vertices();
+	update_visible_vertices(_render_offset);
 }
 
 
@@ -158,7 +174,7 @@ Tilemap::~Tilemap()
  * the second vector holds the layers
  * the values of the second vector are the texture id.
  */
-TextureMap Tilemap::get_texture_map()
+TextureMap Tilemap::generate_texture_map()
 {
 	TextureMap texmap;
 	
@@ -190,7 +206,7 @@ TextureMap Tilemap::get_texture_map()
  * whether any of them are defined as obstacle.
  * if yes -> field = true else false
  */
-ObstacleMap Tilemap::get_obstacle_map()
+ObstacleMap Tilemap::generate_obstacle_map()
 {
 	ObstacleMap obstmap;
 
@@ -221,8 +237,6 @@ ObstacleMap Tilemap::get_obstacle_map()
 
 	return obstmap;
 }
-
-// TODO: This method still has to be implemented
 
 
 void Tilemap::update_map_vertices()
@@ -287,7 +301,7 @@ void Tilemap::add_layer()
 
 
 
-			// Copy paste from above
+			// Copy paste from initialization in constructor above
 			//
 			int tile_img_id = _texmap[ly * width + lx][_num_layers-1];
 
@@ -318,33 +332,84 @@ void Tilemap::add_layer()
 
 
 
-void Tilemap::update_visible_vertices(sf::Vector2<int> offset)
+void Tilemap::update_visible_vertices(sf::Vector2u offset)
 {
-	sf::VideoMode resolution = sf::VideoMode::getDesktopMode();
-	int width = resolution.width;
-	int height = resolution.height;
+	int width = _size.x;
+	int height = _size.y;
+
+	int win_width = _p_win->getView().getSize().x;
+	int win_height = _p_win->getView().getSize().y;
 	
-	int tiles_x = width / _tilesize;
-	int tiles_y = height / _tilesize;
+	// number of visible tiles in each direction 
+	// Add one extra to avoid rendering glitches
+	//
+	int tiles_x = win_width / _tilesize + 1;
+	int tiles_y = win_height / _tilesize + 1;
+
+	// The rendering offset (can't be negative)
+	//
+	int off_x = offset.x;
+	int off_y = offset.y;
 
 
 	// This block could be transfered to a seperate method
 	// since this only needs to be done once the resolution 
 	// or the number of layers changes
+	// (Better just leave it here though)
 	//
-	_visible_vertices.resize(tiles_x * tiles_y);
+	
+	_visible_vertices.resize(_num_layers);
 	for (int y = 0; y < tiles_y; y++)
 		for (int x = 0; x < tiles_x; x++)
 			for (int l = 0; l < _num_layers; l++)
-				_visible_vertices[y * width + x].resize(_num_layers);
-
-
+			{
+				_visible_vertices[l].setPrimitiveType(sf::Quads);
+				_visible_vertices[l].resize(tiles_x * tiles_y * 4);
+			}
 	
 
+	// Copy all visible render_vertices from all layers into the visible_vertices
+	//
+	for (int l = 0; l < _num_layers; l++)
+	{
+		for (int y = 0; y < tiles_y; y++)
+		{
+			for (int x = 0; x < tiles_x; x++)
+			{
+				// Calculate indices of starting vertices in both vectors
+				//
+				int idx_render = ((off_y + y) * width + off_x + x) * 4;
+				int idx_visible = (y * tiles_x + x) * 4;
 
+				// Pick starting vertices
+				sf::Vertex* render_vertex = &_render_vertices[l][idx_render];
+				sf::Vertex* visible_vertex = &_visible_vertices[l][idx_visible];
+
+				// Copy the next 4 vertices
+				// and apply offset
+				//
+				for (int i = 0; i < 4; i++)
+				{
+					visible_vertex[i] = render_vertex[i];
+					visible_vertex[i].position -= sf::Vector2f(offset) * (float)_tilesize;
+				}
+			}
+			
+		}
+	}
 
 }
 
 
+void Tilemap::set_render_offset(sf::Vector2u offset)
+{
+	_render_offset = offset;
+	update_visible_vertices(_render_offset);
+}
 
+
+void Tilemap::set_render_offset(unsigned int x, unsigned int y)
+{
+	set_render_offset(sf::Vector2u(x, y));
+}
 
