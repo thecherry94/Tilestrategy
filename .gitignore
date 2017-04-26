@@ -64,3 +64,9 @@ Debug/vc140.pdb
 Debug/Tilestrategy.tlog/CL.command.1.tlog
 *.tlog
 *.pdb
+*.exe
+Debug/Tilestrategy.tlog/CL.read.1.tlog
+*.log
+Release/Tilestrategy.ipdb
+*.iobj
+*.tlog

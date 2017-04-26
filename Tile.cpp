@@ -12,6 +12,11 @@ std::shared_ptr<Tile> Tile::create_empty()
 	return std::make_shared<Tile>(TS_GRASS);
 }
 
+std::shared_ptr<Tile> Tile::create_wall()
+{
+	return std::make_shared<Tile>(TS_WALL, true);
+}
+
 
 int Tile::get_image_id()
 {
