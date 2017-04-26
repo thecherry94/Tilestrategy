@@ -2,7 +2,7 @@
 
 
 
-Tilemap::Tilemap(sf::RenderWindow* win, sf::Vector2<int> map_size, int tilesize, sf::String image_path, int num_layers = 1)
+Tilemap::Tilemap(sf::RenderWindow* win, sf::Vector2u map_size, int tilesize, sf::String image_path, int num_layers = 1)
 {
 	_p_win = win;
 	_num_layers = num_layers;
@@ -94,7 +94,7 @@ void Tilemap::draw(sf::RenderTarget& target, sf::RenderStates states) const
  * A new layer will be added as long as the field specified is not transparent.
  * Use set_tile to change a tile on a layer specified.
  */
-void Tilemap::add_tile(sf::Vector2<int> pos, Tile tile)
+void Tilemap::add_tile(sf::Vector2u pos, Tile tile)
 {
 	int x = pos.x;
 	int y = pos.y;
@@ -109,7 +109,7 @@ void Tilemap::add_tile(sf::Vector2<int> pos, Tile tile)
 
 	// Insert the new tile into the tilemap
 	_map[y * width + x][_num_layers - 1] = std::make_shared<Tile>(tile);
-	update_maps();
+	update_maps(x, y);
 }
 
 void Tilemap::update_maps(sf::Vector2u at)
@@ -121,7 +121,49 @@ void Tilemap::update_maps(sf::Vector2u at)
 
 void Tilemap::update_maps(unsigned int at_x, unsigned int at_y)
 {
+	int width = _size.x;
+	int height = _size.y;
 
+	std::vector<std::shared_ptr<Tile>> tiles;
+	tiles.resize(_num_layers);
+
+	for (int l = 0; l < _num_layers; l++)
+		tiles[l] = _map[at_y * width + at_x][l];
+	
+
+	update_texture_map(at_x, at_y, tiles);
+	update_obstacle_map(at_x, at_y, tiles);
+	update_map_vertices(at_x, at_y);
+	update_visible_vertices(_render_offset);
+}
+
+
+void Tilemap::update_texture_map(unsigned int at_x, unsigned int at_y, std::vector<std::shared_ptr<Tile>> tiles)
+{
+	int width = _size.x;
+	int height = _size.y;
+
+	for (int l = 0; l < _num_layers; l++)
+		_texmap[at_y * width + at_x][l] = tiles[l]->get_image_id();
+}
+
+
+void Tilemap::update_obstacle_map(unsigned int at_x, unsigned int at_y, std::vector<std::shared_ptr<Tile>> tiles)
+{
+	int width = _size.x;
+	int height = _size.y;
+
+	bool obst = false;
+	for (int l = 0; l < _num_layers; l++)
+	{
+		if (tiles[l]->is_obstacle())
+		{
+			obst = true;
+			break;
+		}
+	}
+
+	_obstmap[at_y * width + at_x] = obst;
 }
 
 
@@ -130,7 +172,7 @@ void Tilemap::update_maps(unsigned int at_x, unsigned int at_y)
  * Instead of adding a tile (and potentially a new layer) this method
  * replaces the specified tile (position, layer) with a new one.
  */
-void Tilemap::set_tile(sf::Vector2<int> pos, Tile tile, int layer)
+void Tilemap::set_tile(sf::Vector2u pos, Tile tile, int layer)
 {
 	int x = pos.x;
 	int y = pos.y;
@@ -146,7 +188,7 @@ void Tilemap::set_tile(sf::Vector2<int> pos, Tile tile, int layer)
 	}
 
 	_map[y * width + x][layer] = std::make_shared<Tile>(tile);
-	update_maps();
+	update_maps(x, y);
 }
 
 
@@ -268,6 +310,30 @@ void Tilemap::update_map_vertices()
 		}
 	}
 }
+
+void Tilemap::update_map_vertices(unsigned int at_x, unsigned int at_y)
+{
+	int width = _size.x;
+	int height = _size.y;
+
+	for (int l = 0; l < _num_layers; l++)
+	{
+		int tile_img_id = _texmap[at_y * width + at_x][l];
+
+		// Calculate the texture coordinates for that tile
+		int tu = tile_img_id % (_texture.getSize().x / _tilesize);
+		int tv = tile_img_id / (_texture.getSize().y / _tilesize);
+
+		sf::Vertex* quad = &_render_vertices[l][(at_y * width + at_x) * 4];
+
+		// Calculate the texture coordinates 
+		quad[0].texCoords = sf::Vector2f(tu * _tilesize, tv * _tilesize);
+		quad[1].texCoords = sf::Vector2f((tu + 1) * _tilesize, tv * _tilesize);
+		quad[2].texCoords = sf::Vector2f((tu + 1) * _tilesize, (tv + 1) * _tilesize);
+		quad[3].texCoords = sf::Vector2f(tu * _tilesize, (tv + 1) * _tilesize);
+	}
+}
+
 
 
 void Tilemap::add_layer()

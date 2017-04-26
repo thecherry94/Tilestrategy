@@ -1,3 +1,5 @@
+#include <Windows.h>
+
 #include <SFML\Graphics.hpp>
 #include <SFML\System.hpp>
 
@@ -7,12 +9,14 @@
 
 #include "Tilemap.hpp"
 
+void gotoxy(int x, int y);
+
 int main()
 {
-	sf::RenderWindow win(sf::VideoMode(800, 600), "Tilestrategy");
+	sf::RenderWindow win(sf::VideoMode(1280, 960), "Tilestrategy");
 
-	Tilemap* map = new Tilemap(&win, sf::Vector2<int>(1000, 1000), 16, "tiles.png", 1);
-	map->add_tile(sf::Vector2<int>(3, 3), Tile(TS_CHEST, false));
+	Tilemap* map = new Tilemap(&win, sf::Vector2u(100, 100), 16, "tiles.png", 1);
+	map->add_tile(sf::Vector2u(3, 3), Tile(TS_CHEST, false));
 	map->set_render_offset(0, 0);
 
 	while (win.isOpen())
@@ -31,11 +35,17 @@ int main()
 		win.display();
 		clock_t end = clock();
 		
+		/*
+		double dt = (double)(end - start) / CLOCKS_PER_SEC;
+
 		std::stringstream s;
-		s << "Elapsed time: " << 1000.0 * (double)(end - start) / CLOCKS_PER_SEC << " ms ";
+		s << "Elapsed time: " << 1000.0 * dt << " ms "
+			<< std::endl
+			<< "FPS: " << 1.0 / dt << " ";
 		std::cout << s.str();
-		for (int i = 0; i < s.str().size(); i++)
-			std::cout << '\b';
+
+		gotoxy(0, 0);
+		*/
 	}
 
 	delete map;
@@ -44,4 +54,11 @@ int main()
 	std::system("pause");
 
 	return 0;
+}
+
+
+void gotoxy(int x, int y) {
+	COORD pos = { x, y };
+	HANDLE output = GetStdHandle(STD_OUTPUT_HANDLE);
+	SetConsoleCursorPosition(output, pos);
 }
