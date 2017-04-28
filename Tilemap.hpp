@@ -15,6 +15,22 @@ typedef std::vector<bool>								ObstacleMap;
 typedef std::vector<sf::VertexArray>					RenderVertices;
 
 
+class MyVec2u : public sf::Vector2u
+{
+	public:
+
+		MyVec2u(sf::Vector2u v) : sf::Vector2u(v) {}
+		MyVec2u(unsigned int x, unsigned int y) : sf::Vector2u(x, y) {}
+
+		bool operator<(const MyVec2u& other)
+		{
+			if (this->x == other.x)
+				return this->y < other.y;
+
+			return this->x < other.x;
+		}
+};
+
 
 /*
  * Tilemap class
@@ -94,6 +110,8 @@ class Tilemap : public sf::Drawable, public sf::Transformable
 		void add_layer();
 		void update_visible_vertices(sf::Vector2u);
 
+		std::vector<MyVec2u> Tilemap::get_neighbors(MyVec2u node, bool);
+
 		sf::Vector2u _render_offset;
 
 		
@@ -119,4 +137,11 @@ class Tilemap : public sf::Drawable, public sf::Transformable
 		sf::Vector2u screen_to_map_coords(sf::Vector2i pos);
 
 		sf::Vector2u get_map_size();
+
+		bool is_obstacle_at(MyVec2u pos);
+		std::vector<MyVec2u> get_all_obstacles();
+
+		std::vector<sf::Vector2u> get_path(sf::Vector2u start, sf::Vector2u goal);
 };
+
+

@@ -425,3 +425,116 @@ sf::Vector2u Tilemap::screen_to_map_coords(sf::Vector2i pos)
 
 	return sf::Vector2u((x / _tilesize + x_off) / getScale().x, (y / _tilesize + y_off) / getScale().y);
 }
+
+
+
+std::vector<sf::Vector2u> Tilemap::get_path(sf::Vector2u _start, sf::Vector2u _goal)
+{
+	MyVec2u start(_start);
+	MyVec2u goal(_goal);
+
+	std::vector<MyVec2u> closed_set = get_all_obstacles();
+	std::vector<MyVec2u> open_set;
+	open_set.push_back(start);
+
+	std::map<MyVec2u, MyVec2u> came_from;
+
+	std::map<MyVec2u, float> g_score;
+	std::map<MyVec2u, float> f_score;
+
+	g_score[start] = 0;
+	f_score[start] = 0;
+
+	while (!open_set.empty())
+	{
+
+		// Following code is garbage
+
+		// Find pair with lowest g_score (shameless copy-paste from stackoverflow)
+		//
+		/*
+		auto current = std::min_element(g_score.begin(), g_score.end(),
+			[](decltype(g_score)::value_type& l, decltype(g_score)::value_type& r) -> bool { return l.second < r.second; });
+		*/
+
+		MyVec2u current = find_lowest_score_node(open_set, f_score);
+
+		if (current == goal)
+		{
+			// goal has been reached
+		}
+
+		// Remove the current element from the open set
+		open_set.erase(std::find(open_set.begin(), open_set.end(), current));
+
+		// and assign it to the closed set
+		closed_set.push_back(current);
+	}
+
+}
+
+bool Tilemap::is_obstacle_at(MyVec2u pos)
+{
+	int x = pos.x;
+	int y = pos.y;
+
+	int width = _size.x;
+
+	return _obstmap[y * width + x];
+}
+
+std::vector<MyVec2u> Tilemap::get_all_obstacles()
+{
+	std::vector<MyVec2u> retval;
+
+	int width = _size.x;
+	int height = _size.y;
+
+	for (int y = 0; y < height; y++)
+		for (int x = 0; x < width; x++)
+			if (_obstmap[y * width + x])
+				retval.push_back(MyVec2u(x, y));
+
+	return retval;
+}
+
+
+/*
+ * This method finds the lowest score node within the node list specified
+ */
+MyVec2u find_lowest_score_node(std::vector<MyVec2u> nodes, std::map<MyVec2u, float> scores)
+{
+	std::pair<MyVec2u, float> lowest(MyVec2u(0, 0), 1000000);
+
+	
+	// Loop through all map pairs
+	//
+	std::map<MyVec2u, float>::iterator it = scores.begin();
+	for (it; it != scores.end(); it++)
+	{
+		std::pair<MyVec2u, float> p = *it;
+
+		// If the value is lower than the current lowest value
+		// and is contained within the passed nodes vector
+		//
+		if (p.second < lowest.second && std::find(nodes.begin(), nodes.end(), p.first) != nodes.end())
+			// Make it the new lowest value
+			lowest = p;
+	}
+
+	return lowest.first;
+}
+
+
+std::vector<MyVec2u> Tilemap::get_neighbors(MyVec2u node, bool diagonal = false)
+{
+	int x = node.x;
+	int y = node.y;
+
+	std::vector<MyVec2u> neighbors;
+	neighbors.reserve(diagonal ? 8 : 4);
+
+	
+	
+}
+

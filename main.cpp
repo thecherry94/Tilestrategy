@@ -8,6 +8,7 @@
 #include <conio.h>
 
 #include "Tilemap.hpp"
+#include "MapWalker.hpp"
 
 #define SPEEDTEST
 
@@ -28,7 +29,7 @@ int main()
 #ifdef SPEEDTEST
 	start = clock();
 #endif
-	Tilemap* map = new Tilemap(&win, sf::Vector2u(1000, 1000), 16, "tiles.png", 1);
+	Tilemap* map = new Tilemap(&win, sf::Vector2u(200, 200), 16, "tiles.png", 1);
 #ifdef SPEEDTEST
 	end = clock();
 	dt = 1000.0 * (double)(end - start) / CLOCKS_PER_SEC;
@@ -70,6 +71,9 @@ int main()
 
 	map->setScale(2.0f, 2.0f);
 
+	MapWalker walker(map, sf::Vector2u(0, 0), "player.png");
+	walker.setScale(2.0f, 2.0f);
+
 	while (win.isOpen())
 	{
 		clock_t start = clock();
@@ -92,6 +96,7 @@ int main()
 
 		win.clear();
 		win.draw(*map);
+		win.draw(walker);
 		win.display();
 		clock_t end = clock();
 		
