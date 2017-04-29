@@ -1,14 +1,11 @@
 #include "Tilemap.hpp"
 
-
+// THIS IS JUST A TEMPORARY WORKAROUND
+float __heuristic = 0.0f;
 
 Tilemap::Tilemap(sf::RenderWindow* win, sf::Vector2u map_size, int tilesize, sf::String image_path, int num_layers = 1)
+	: _p_win(win), _num_layers(num_layers), _size(map_size), _tilesize(tilesize)
 {
-	_p_win = win;
-	_num_layers = num_layers;
-	_size = map_size;
-	_tilesize = tilesize;
-
 	int win_width = _p_win->getView().getSize().x;
 	int win_height = _p_win->getView().getSize().y;
 
@@ -55,6 +52,7 @@ Tilemap::Tilemap(sf::RenderWindow* win, sf::Vector2u map_size, int tilesize, sf:
 		for (int x = 0; x < width; x++)
 			_map[y * width + x].resize(_num_layers, Tile::create_empty());
 
+	_map.shrink_to_fit();
 
 	// Update the obstacle map
 	_obstmap = generate_obstacle_map();
@@ -116,7 +114,8 @@ void Tilemap::draw(sf::RenderTarget& target, sf::RenderStates states) const
 
 
 
-
+// Updates all maps at specified point
+//
 void Tilemap::update_maps(sf::Vector2u at)
 {
 	update_maps(at.x, at.y);
@@ -240,12 +239,16 @@ void Tilemap::set_tile(sf::Vector2u pos, Tile tile, int layer)
 	int x = pos.x;
 	int y = pos.y;
 
-	if (x < 0 || y < 0)
-		return;
-
 	int width = _size.x;
 	int height = _size.y;
 
+	// Check bounds
+	//
+	if (x < 0 || y < 0 || x >= width || y >= width)
+		return;
+
+	// Check layer
+	//
 	if (layer >= _num_layers || layer < 0)
 	{
 		std::stringstream str;
@@ -253,7 +256,10 @@ void Tilemap::set_tile(sf::Vector2u pos, Tile tile, int layer)
 		throw std::exception(str.str().c_str());
 	}
 
+	// Replace current tile on position with new tiles
 	_map[y * width + x][layer] = std::make_shared<Tile>(tile);
+
+	// Update all maps at that location
 	update_maps(x, y);
 }
 
@@ -264,6 +270,7 @@ void Tilemap::update_maps()
 {
 	//_texmap = generate_texture_map();
 	_obstmap = generate_obstacle_map();
+
 	//update_map_vertices();
 	update_visible_vertices(_render_offset);
 }
@@ -311,6 +318,7 @@ ObstacleMap Tilemap::generate_obstacle_map()
 		}
 	}
 
+	obstmap.shrink_to_fit();
 	return obstmap;
 }
 
@@ -383,6 +391,7 @@ void Tilemap::update_visible_vertices(sf::Vector2u offset)
 		}
 	}
 
+	_visible_vertices.shrink_to_fit();
 }
 
 
@@ -404,6 +413,12 @@ sf::Vector2u Tilemap::get_map_size()
 	return _size;
 }
 
+/*
+ * Converts the global coordinates to the map coordinates
+ * IMPORTANT:
+ * This only takes scale into account. Other transformations will be ignored
+ * Has to be implemented if needed
+ */
 sf::Vector2u Tilemap::screen_to_map_coords(sf::Vector2f pos)
 {
 	float x = pos.x;
@@ -415,6 +430,13 @@ sf::Vector2u Tilemap::screen_to_map_coords(sf::Vector2f pos)
 	return sf::Vector2u(((int)(x / _tilesize) + x_off) / getScale().x, ((int)(y / _tilesize) + y_off) / getScale().y);
 }
 
+
+/*
+ * Converts the global coordinates to the map coordinates
+ * IMPORTANT:
+ * This only takes scale into account. Other transformations will be ignored
+ * Has to be implemented if needed
+ */
 sf::Vector2u Tilemap::screen_to_map_coords(sf::Vector2i pos)
 {
 	int x = pos.x;
@@ -428,52 +450,106 @@ sf::Vector2u Tilemap::screen_to_map_coords(sf::Vector2i pos)
 
 
 
-std::vector<sf::Vector2u> Tilemap::get_path(sf::Vector2u _start, sf::Vector2u _goal)
+/*
+ * Utilizes the A* Pathfinding algorithm to find a path between two map nodes
+ * This is still the first implementation and it might not work in some edge cases
+ * More testing needs to be done
+ */
+std::vector<sf::Vector2u> Tilemap::get_path(sf::Vector2u _start, sf::Vector2u _goal, bool diagonal)
 {
-	MyVec2u start(_start);
-	MyVec2u goal(_goal);
+	// THIS IS JUST A TEMPORARY WORKAROUND
+	__heuristic = 0.0f;
 
-	std::vector<MyVec2u> closed_set = get_all_obstacles();
-	std::vector<MyVec2u> open_set;
+	Pathnode start(_start);
+	Pathnode goal(_goal);
+
+	std::vector<Pathnode> closed_set = get_all_obstacles();
+	std::vector<Pathnode> open_set;
 	open_set.push_back(start);
 
-	std::map<MyVec2u, MyVec2u> came_from;
-
-	std::map<MyVec2u, float> g_score;
-	std::map<MyVec2u, float> f_score;
-
-	g_score[start] = 0;
-	f_score[start] = 0;
+	std::map<Pathnode, Pathnode> came_from;
 
 	while (!open_set.empty())
 	{
+		Pathnode current = find_lowest_score_node(open_set);
 
-		// Following code is garbage
-
-		// Find pair with lowest g_score (shameless copy-paste from stackoverflow)
+		// A path has been found, stop algorithm and return value
 		//
-		/*
-		auto current = std::min_element(g_score.begin(), g_score.end(),
-			[](decltype(g_score)::value_type& l, decltype(g_score)::value_type& r) -> bool { return l.second < r.second; });
-		*/
-
-		MyVec2u current = find_lowest_score_node(open_set, f_score);
-
 		if (current == goal)
-		{
-			// goal has been reached
-		}
+			return reconstruct_path(came_from, current);
 
 		// Remove the current element from the open set
 		open_set.erase(std::find(open_set.begin(), open_set.end(), current));
 
+		// Set nodes status to closed
+		current.closed = true;
+		current.open = false;
+
 		// and assign it to the closed set
 		closed_set.push_back(current);
+
+		// Loop through all neighbors
+		//
+		std::vector<Pathnode> current_neighbors = get_neighbors(current, diagonal);	
+		std::vector<Pathnode>::iterator it_nb = current_neighbors.begin();
+		for (it_nb; it_nb != current_neighbors.end(); it_nb++)
+		{
+			// If the current neighbor belongs to the closed set,
+			// continue with the next element
+			if (std::find(closed_set.begin(), closed_set.end(), *it_nb) != closed_set.end())
+				continue;
+
+			// Since all nodes on the map are equidistantly spaced, I only need to check if their x and y values differ
+			// If both x and y differ, they are diagonally neighoring 
+			// If only x or only y differ, they are neighboring in a straight line
+			// It's faster than pythagoras
+			float tent_g_score = current.g_score_current + (it_nb->x != current.x && it_nb->y != current.y) ? sqrt(2) : 1;  //(float)sqrt(pow<float>((it_nb->x - current.x), 2) + pow<float>((it_nb->y - current.y), 2));
+
+			// If the current neighbor is not in the open_set yet
+			if (std::find(open_set.begin(), open_set.end(), *it_nb) == open_set.end())
+			{
+				it_nb->open = true;
+				open_set.push_back(*it_nb);			
+			}
+			// It is in the open set
+			else if (tent_g_score > it_nb->g_score_current)
+				// not a better path, continue
+				continue;
+
+			it_nb->g_score_current = tent_g_score;
+			it_nb->f_score_current = tent_g_score + steven_van_dijk_heuristic(start, goal, current);
+			came_from[*it_nb] = current;
+			
+		}
 	}
 
+	// No path found, return empty vector
+	return std::vector<sf::Vector2u>();
 }
 
-bool Tilemap::is_obstacle_at(MyVec2u pos)
+std::vector<sf::Vector2u> Tilemap::reconstruct_path(std::map<Pathnode, Pathnode> cf, Pathnode current)
+{
+	std::vector<sf::Vector2u> path;
+	path.reserve(cf.size());
+
+	std::vector<Pathnode> keys;
+	std::map<Pathnode, Pathnode>::iterator it = cf.begin();
+	for (it; it != cf.end(); it++)
+		keys.push_back(it->first);
+	
+	path.push_back(current);
+	while (std::find(keys.begin(), keys.end(), current) != keys.end())
+	{
+		current = cf[current];
+		path.push_back(current);
+	}
+
+	path.shrink_to_fit();
+	return path;
+	
+}
+
+bool Tilemap::is_obstacle_at(Pathnode pos)
 {
 	int x = pos.x;
 	int y = pos.y;
@@ -483,9 +559,10 @@ bool Tilemap::is_obstacle_at(MyVec2u pos)
 	return _obstmap[y * width + x];
 }
 
-std::vector<MyVec2u> Tilemap::get_all_obstacles()
+
+std::vector<Pathnode> Tilemap::get_all_obstacles()
 {
-	std::vector<MyVec2u> retval;
+	std::vector<Pathnode> retval;
 
 	int width = _size.x;
 	int height = _size.y;
@@ -493,26 +570,27 @@ std::vector<MyVec2u> Tilemap::get_all_obstacles()
 	for (int y = 0; y < height; y++)
 		for (int x = 0; x < width; x++)
 			if (_obstmap[y * width + x])
-				retval.push_back(MyVec2u(x, y));
+				retval.push_back(Pathnode(x, y, true));
 
 	return retval;
 }
 
 
+
 /*
- * This method finds the lowest score node within the node list specified
+ * This method finds the lowest f score node within the node list specified
  */
-MyVec2u find_lowest_score_node(std::vector<MyVec2u> nodes, std::map<MyVec2u, float> scores)
+Pathnode find_lowest_score_node(std::vector<Pathnode> nodes, std::map<Pathnode, float> scores)
 {
-	std::pair<MyVec2u, float> lowest(MyVec2u(0, 0), 1000000);
+	std::pair<Pathnode, float> lowest(Pathnode(0, 0), 1000000);
 
 	
 	// Loop through all map pairs
 	//
-	std::map<MyVec2u, float>::iterator it = scores.begin();
+	std::map<Pathnode, float>::iterator it = scores.begin();
 	for (it; it != scores.end(); it++)
 	{
-		std::pair<MyVec2u, float> p = *it;
+		std::pair<Pathnode, float> p = *it;
 
 		// If the value is lower than the current lowest value
 		// and is contained within the passed nodes vector
@@ -525,16 +603,114 @@ MyVec2u find_lowest_score_node(std::vector<MyVec2u> nodes, std::map<MyVec2u, flo
 	return lowest.first;
 }
 
+/*
+ * Finds the the node with the lowest f score in the vector
+ */
+Pathnode Tilemap::find_lowest_score_node(std::vector<Pathnode> nodes)
+{
+	std::vector<Pathnode>::iterator lowest = nodes.begin();
+	std::vector<Pathnode>::iterator it = nodes.begin() + 1;
+	for (it; it != nodes.end(); it++)
+	{
+		if (lowest->f_score_current > it->f_score_current)
+			lowest = it;
+	}
 
-std::vector<MyVec2u> Tilemap::get_neighbors(MyVec2u node, bool diagonal = false)
+	return *lowest;
+}
+
+/*
+ * Returns at least the 4 directly neighboring tiles
+ * If specified, the 4 diagonal neighbors will be returned well
+ * 
+ */
+std::vector<Pathnode> Tilemap::get_neighbors(Pathnode node, bool diagonal)
 {
 	int x = node.x;
 	int y = node.y;
 
-	std::vector<MyVec2u> neighbors;
-	neighbors.reserve(diagonal ? 8 : 4);
+	int width = _size.x;
+	int height = _size.y;
 
+	std::vector<Pathnode> neighbors;
+
+
+	// Add the next 4 neighbouring tiles
+	//
+
+	if (x > 0)
+	{
+		if (!_obstmap[y * width + x - 1])
+			neighbors.push_back(Pathnode(x - 1, y));
+	}
 	
+	if (x + 1 < width)
+	{
+		if (!_obstmap[y * width + x + 1])
+			neighbors.push_back(Pathnode(x + 1, y));
+	}
 	
+	if (y > 0)
+	{
+		if (!_obstmap[(y - 1) * width + x])
+			neighbors.push_back(Pathnode(x, y - 1));
+	}
+
+	if (y + 1 < height)
+	{
+		if (!_obstmap[(y + 1) * width + x])
+			neighbors.push_back(Pathnode(x, y + 1));
+	}
+
+
+	// If diagonal tiles as well 
+	// add 4 more
+	//
+
+	if (diagonal)
+	{
+		if (x > 0 && y > 0)
+		{
+			if (!_obstmap[(y - 1) * width + x - 1])
+				neighbors.push_back(Pathnode(x - 1, y));
+		}
+
+		if (x > 0 && y + 1 < height)
+		{
+			if (!_obstmap[(y + 1) * width + x - 1])
+				neighbors.push_back(Pathnode(x - 1, y + 1));
+		}
+
+		if (x + 1 < width && y > 0)
+		{
+			if (!_obstmap[(y - 1) * width + x + 1])
+				neighbors.push_back(Pathnode(x + 1, y - 1));
+		}
+
+		if (x + 1 < width && y + 1 < height)
+		{
+			if (!_obstmap[(y + 1) * width + x + 1])
+				neighbors.push_back(Pathnode(x + 1, y + 1));
+		}
+	}
+	
+	return neighbors;
 }
 
+
+float Tilemap::steven_van_dijk_heuristic(Pathnode start, Pathnode goal, Pathnode current)
+{
+	const float C = 0.001f;
+
+	float dx1 = (float)current.x - (float)goal.x;
+	float dx2 = (float)start.x - (float)goal.x;
+
+	float dy1 = (float)current.y - (float)goal.y;
+	float dy2 = (float)start.y - (float)goal.y;
+
+	float cross = abs(dx1 * dy2 - dy1 * dx2);
+
+	__heuristic += C * cross;
+
+	return __heuristic;
+}

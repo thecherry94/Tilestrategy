@@ -40,6 +40,10 @@ $RECYCLE.BIN/
 .VolumeIcon.icns
 
 # Directories potentially created on remote AFP share
+
+Debug\*
+Release\*
+
 .AppleDB
 .AppleDesktop
 Network Trash Folder
@@ -70,3 +74,5 @@ Debug/Tilestrategy.tlog/CL.read.1.tlog
 Release/Tilestrategy.ipdb
 *.iobj
 *.tlog
+*.tlog
+*.opendb

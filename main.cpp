@@ -29,7 +29,7 @@ int main()
 #ifdef SPEEDTEST
 	start = clock();
 #endif
-	Tilemap* map = new Tilemap(&win, sf::Vector2u(200, 200), 16, "tiles.png", 1);
+	Tilemap* map = new Tilemap(&win, sf::Vector2u(1000, 1000), 16, "tiles.png", 1);
 #ifdef SPEEDTEST
 	end = clock();
 	dt = 1000.0 * (double)(end - start) / CLOCKS_PER_SEC;
@@ -73,6 +73,8 @@ int main()
 
 	MapWalker walker(map, sf::Vector2u(0, 0), "player.png");
 	walker.setScale(2.0f, 2.0f);
+
+	std::vector<sf::Vector2u> path = map->get_path(sf::Vector2u(0, 0), sf::Vector2u(300, 300), true);
 
 	while (win.isOpen())
 	{
