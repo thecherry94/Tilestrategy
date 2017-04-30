@@ -14,22 +14,54 @@ typedef std::vector<std::vector<std::shared_ptr<Tile>>> TilemapContainer;
 typedef std::vector<bool>								ObstacleMap;
 typedef std::vector<sf::VertexArray>					RenderVertices;
 
+typedef std::vector<sf::Vector2u>						Path;
 
-class MyVec2u : public sf::Vector2u
+class Pathnode : public sf::Vector2u
 {
 	public:
 
-		MyVec2u(sf::Vector2u v) : sf::Vector2u(v) {}
-		MyVec2u(unsigned int x, unsigned int y) : sf::Vector2u(x, y) {}
+		Pathnode() : sf::Vector2u() {}
 
-		bool operator<(const MyVec2u& other)
+		Pathnode(sf::Vector2u v, bool c = false) : sf::Vector2u(v), 
+			closed(c), open(c), 
+			g_score_cost(1), g_score_current(0) { }
+
+		Pathnode(unsigned int x, unsigned int y, bool c = false) : sf::Vector2u(x, y), 
+			closed(c), open(c), 
+			g_score_cost(1), g_score_current(0) {}
+
+		// Overloading < operator so this class can be used in 
+		// std::map as key
+		//
+		bool operator <(const Pathnode& other)
 		{
 			if (this->x == other.x)
 				return this->y < other.y;
 
 			return this->x < other.x;
 		}
+
+		/* possibly not needed anymore */
+		bool closed;
+		bool open;
+		/*******************************/
+
+		float g_score_cost;
+		float g_score_current;
+
+		float f_score_current;
 };
+
+// Overloading < operator for Pathnode to Pathnode comparison
+// so a Pathnode can be used as std::map as key
+//
+inline bool operator<(const Pathnode& lhs, const Pathnode& rhs)
+{
+	if (lhs.x == rhs.x)
+		return lhs.y < rhs.y;
+
+	return lhs.x < rhs.x;
+}
 
 
 /*
@@ -81,6 +113,19 @@ class MyVec2u : public sf::Vector2u
  *			 But why store render information of something that is not visible?
  * 
  * 5. Adding a new layer is super performance intensive. I should see to improve it.
+ *
+ * 7. The patfinding algorithm should be more generalized since I want to graph the map into submaps
+ *	  and always walk from submap to submap for larger paths. This won't be as performance hungry and
+ *	  might look more continous to the player.
+ *
+ *	  [DONE] This worked better than expected
+ *	  Checking if nodes are in an open or closed set is worst case O(N)
+ *	  Maybe I can introduce an additional map that holds these informations separately.
+ *	  Accessing this map would be worst case O(ln N)
+ *
+ *	  Maybe create an array of all possible Pathnodes and just point to them for the rest of the algo
+ *
+ *    Maybe spawn a separate, detached thread for the calculations?
  * 
  * TL;DR:
  * This code sucks ass but it works.
@@ -110,7 +155,10 @@ class Tilemap : public sf::Drawable, public sf::Transformable
 		void add_layer();
 		void update_visible_vertices(sf::Vector2u);
 
-		std::vector<MyVec2u> Tilemap::get_neighbors(MyVec2u node, bool);
+		std::vector<Pathnode> get_neighbors(Pathnode node, bool diagonal = false);
+		Pathnode find_lowest_score_node(std::vector<Pathnode> nodes);
+		std::vector<sf::Vector2u> reconstruct_path(std::map<Pathnode, Pathnode> cf, Pathnode current);
+		float steven_van_dijk_heuristic(Pathnode& start, Pathnode& goal, Pathnode& current);
 
 		sf::Vector2u _render_offset;
 
@@ -138,10 +186,13 @@ class Tilemap : public sf::Drawable, public sf::Transformable
 
 		sf::Vector2u get_map_size();
 
-		bool is_obstacle_at(MyVec2u pos);
-		std::vector<MyVec2u> get_all_obstacles();
+		bool is_obstacle_at(Pathnode pos);
+		std::vector<Pathnode> get_all_obstacles();
 
-		std::vector<sf::Vector2u> get_path(sf::Vector2u start, sf::Vector2u goal);
+		std::vector<sf::Vector2u> get_path(sf::Vector2u start, sf::Vector2u goal, bool diagonal = false);
+
+
+		int get_tile_size(bool with_transform = false);
 };
 
 

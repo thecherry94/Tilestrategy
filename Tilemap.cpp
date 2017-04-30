@@ -1,5 +1,7 @@
 #include "Tilemap.hpp"
 
+#define SQRT2 1.414f
+
 // THIS IS JUST A TEMPORARY WORKAROUND
 float __heuristic = 0.0f;
 
@@ -468,18 +470,35 @@ std::vector<sf::Vector2u> Tilemap::get_path(sf::Vector2u _start, sf::Vector2u _g
 	open_set.push_back(start);
 
 	std::map<Pathnode, Pathnode> came_from;
+	
+	std::map<Pathnode, bool> open_check;
+	std::map<Pathnode, bool> closed_check;
+
+	// Nope
+	/*
+	for (int y = 0; y < _size.y; y++)
+		for (int x = 0; x < _size.x; x++)
+		{
+			open_check[Pathnode(x, y)] = false;
+			closed_check[Pathnode(x, y)] = false;
+		}
+	*/
+
+	open_check[start] = true;
+	closed_check[start] = false;
 
 	while (!open_set.empty())
 	{
 		Pathnode current = find_lowest_score_node(open_set);
 
-		// A path has been found, stop algorithm and return value
+		// A path has been found, stop algorithm and return path
 		//
 		if (current == goal)
 			return reconstruct_path(came_from, current);
 
 		// Remove the current element from the open set
 		open_set.erase(std::find(open_set.begin(), open_set.end(), current));
+		open_check[current] = false;
 
 		// Set nodes status to closed
 		current.closed = true;
@@ -487,6 +506,7 @@ std::vector<sf::Vector2u> Tilemap::get_path(sf::Vector2u _start, sf::Vector2u _g
 
 		// and assign it to the closed set
 		closed_set.push_back(current);
+		closed_check[current] = true;
 
 		// Loop through all neighbors
 		//
@@ -496,24 +516,27 @@ std::vector<sf::Vector2u> Tilemap::get_path(sf::Vector2u _start, sf::Vector2u _g
 		{
 			// If the current neighbor belongs to the closed set,
 			// continue with the next element
-			if (std::find(closed_set.begin(), closed_set.end(), *it_nb) != closed_set.end())
+			//if (std::find(closed_set.begin(), closed_set.end(), *it_nb) != closed_set.end()) <-- GARBAGE INEFFICIENT CODE
+			if (closed_check[*it_nb])
 				continue;
 
 			// Since all nodes on the map are equidistantly spaced, I only need to check if their x and y values differ
 			// If both x and y differ, they are diagonally neighoring 
 			// If only x or only y differ, they are neighboring in a straight line
 			// It's faster than pythagoras
-			float tent_g_score = current.g_score_current + (it_nb->x != current.x && it_nb->y != current.y) ? sqrt(2) : 1;  //(float)sqrt(pow<float>((it_nb->x - current.x), 2) + pow<float>((it_nb->y - current.y), 2));
+			float tent_g_score = current.g_score_current + (it_nb->x != current.x && it_nb->y != current.y) ? 1.414 : 1;  //(float)sqrt(pow<float>((it_nb->x - current.x), 2) + pow<float>((it_nb->y - current.y), 2));
 
 			// If the current neighbor is not in the open_set yet
-			if (std::find(open_set.begin(), open_set.end(), *it_nb) == open_set.end())
+			//if (std::find(open_set.begin(), open_set.end(), *it_nb) == open_set.end()) <-- GARBAGE INEFFICIENT CODE
+			if (!open_check[*it_nb])
 			{
 				it_nb->open = true;
-				open_set.push_back(*it_nb);			
+				open_set.push_back(*it_nb);	
+				open_check[*it_nb] = true;
 			}
-			// It is in the open set
+			// Is it in the open set?
 			else if (tent_g_score > it_nb->g_score_current)
-				// not a better path, continue
+				// yes, but not a better path, continue
 				continue;
 
 			it_nb->g_score_current = tent_g_score;
@@ -530,7 +553,7 @@ std::vector<sf::Vector2u> Tilemap::get_path(sf::Vector2u _start, sf::Vector2u _g
 std::vector<sf::Vector2u> Tilemap::reconstruct_path(std::map<Pathnode, Pathnode> cf, Pathnode current)
 {
 	std::vector<sf::Vector2u> path;
-	path.reserve(cf.size());
+	//path.reserve(cf.size());
 
 	std::vector<Pathnode> keys;
 	std::map<Pathnode, Pathnode>::iterator it = cf.begin();
@@ -698,7 +721,7 @@ std::vector<Pathnode> Tilemap::get_neighbors(Pathnode node, bool diagonal)
 }
 
 
-float Tilemap::steven_van_dijk_heuristic(Pathnode start, Pathnode goal, Pathnode current)
+float Tilemap::steven_van_dijk_heuristic(Pathnode& start, Pathnode& goal, Pathnode& current)
 {
 	const float C = 0.001f;
 
@@ -713,4 +736,12 @@ float Tilemap::steven_van_dijk_heuristic(Pathnode start, Pathnode goal, Pathnode
 	__heuristic += C * cross;
 
 	return __heuristic;
+}
+
+
+
+
+int Tilemap::get_tile_size(bool with_transform)
+{
+	return with_transform ? _tilesize * getScale().x : _tilesize;
 }
